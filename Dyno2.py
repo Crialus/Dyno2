@@ -10,6 +10,7 @@ import sys
 
 
 def get_shd():
+    # User input for SHD number that ensures correct format via regex and return SHD
     shd = input('Please enter an SHD number in the form YYMMDDXX####: ')
     rex = re.compile('^[0-9]{6}[A-Z]{2}[0-9]{4}$')
     if rex.match(shd):
@@ -19,6 +20,8 @@ def get_shd():
 
 
 def get_unit_type():
+    # Get folder containing results data. Load all folders from root and use inquirer
+    # list to select the folder containing SHD and return the path to the relevant SHD data
     ROOT = 'T:\\Motors\\Lab Testing\\00 Active Tasks\\'
     dir_list = [item for item in os.listdir(ROOT) if os.path.isdir(os.path.join(ROOT, item))]
     model_list = [
@@ -33,6 +36,7 @@ def get_unit_type():
 
 
 def results_files(path, shd):
+    # Create paths for all required files and return a dictionary of them
     template_path = path + '\\' + 'Template'
     path = path + '\\' + shd
     unit_paths = {
@@ -50,19 +54,10 @@ def results_files(path, shd):
     return unit_paths
 
 
-def main():
-    shd = get_shd()
-    path = get_unit_type()
-    unit_paths = results_files(path, shd)
-    unit = Transfer(unit_paths, shd)
-    unit.cogging()
-    unit.hsf()
-    unit.bemf()
-    unit.misc()
-
-
 class Transfer:
     def __init__(self, paths, shd):
+        # If results spreadsheet exists then use that as template base, else
+        # load a new sheet from template
         self.paths = paths
         self.shd = shd
         self.template = self.paths.get('template')
@@ -73,6 +68,8 @@ class Transfer:
             self.entry = xl.load_workbook(self.template)
 
     def misc(self):
+        # Add the SHD to the serial number of generated report and label
+        # the rows in cogging for both unit and fixture only
         sheet = self.entry['Generated Report']
         sheet.cell(row=10, column=4, value=self.shd)
         sheet = self.entry['Cogging']
@@ -81,6 +78,9 @@ class Transfer:
         self.entry.save(self.results)
 
     def copy_data(self, sheet, static, variable, type, values):
+        # copy data held in variables to the results file, for multiple values either
+        # row or column will be variable and the passed 'type' will define which this is.
+        # the passed 'variable' is the start number for the iteration
         i = variable
         sheet = self.entry[sheet]
         if type == 'row':
@@ -98,6 +98,8 @@ class Transfer:
             sheet.cell(row=static, column=variable, value=x)
 
     def cogging(self):
+        # For fixture only, take the inline mean values and add them to the results.
+        # For the unit data take inline mean values, and peak to peak values
         sheet = 'Cogging'
         fix_only = self.paths.get('cogging_fix_only')
         cogging = self.paths.get('cogging')
@@ -109,8 +111,8 @@ class Transfer:
         cogging_inline_mean = (cogging_data.loc[15, 1], cogging_data.loc[15, 4])
         cogging_cw = cogging_data.loc[23:70, 1]
         cogging_acw = cogging_data.loc[23:70, 4]
-        #test_date = str(cogging_data.loc[2, 2])
-        #self.copy_data(sheet, 2, 2, 'single', test_date)
+        # test_date = str(cogging_data.loc[2, 2])
+        # self.copy_data(sheet, 2, 2, 'single', test_date)
         self.copy_data(sheet, 10, 22, 'column', cogging_inline_mean)
         self.copy_data(sheet, 10, 28, 'column', cogging_p2p)
         self.copy_data(sheet, 10, 32, 'column', cogging_cw)
@@ -118,6 +120,7 @@ class Transfer:
         self.entry.save(self.results)
 
     def hsf(self):
+        # Take inline means for both unit and fixture only data at 1000 rpm
         sheet = 'High Speed Friction'
         fix_only = self.paths.get('high_speed_friction_fix_only')
         hsf = self.paths.get('high_speed_friction')
@@ -130,6 +133,7 @@ class Transfer:
         self.entry.save(self.results)
 
     def bemf(self):
+        # Take mean Ke and Ke betweeb each phase, also take rotational speed during test
         sheet = 'Bemf Ke'
         bemf123 = self.paths.get('back_emf_123')
         bemf456 = self.paths.get('back_emf_456')
@@ -145,6 +149,9 @@ class Transfer:
         bemf456_acw_values = bemf456_data.loc[12:16, 4]
         self.copy_data(sheet, 10, 15, 'row', bemf456_cw_values)
         self.copy_data(sheet, 13, 15, 'row', bemf456_acw_values)
+        # If motor has lanes 3 + 4 then add the same values to the sheet. Needs an additional solution
+        # as currently data is simply stored in the same sheet and no analysis takes place.
+        # potential to either create new file and store in the analysed cells or needs new template
         if os.path.exists(bemf789):
             bemf789_data = pd.DataFrame(pd.read_csv(open(bemf789), delimiter=',', header=None))
             bemf789_cw_values = bemf789_data.loc[12:16, 1]
@@ -158,6 +165,17 @@ class Transfer:
             self.copy_data(sheet, 11, 15, 'row', bemf101112_cw_values)
             self.copy_data(sheet, 14, 15, 'row', bemf101112_acw_values)
         self.entry.save(self.results)
+
+
+def main():
+    shd = get_shd()
+    path = get_unit_type()
+    unit_paths = results_files(path, shd)
+    unit = Transfer(unit_paths, shd)
+    unit.cogging()
+    unit.hsf()
+    unit.bemf()
+    unit.misc()
 
 
 main()
