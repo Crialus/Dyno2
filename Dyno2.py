@@ -75,6 +75,11 @@ class Transfer:
         # the rows in cogging for both unit and fixture only
         sheet = self.entry['Generated Report']
         sheet.cell(row=10, column=4, value=self.shd)
+        mps_type = sheet.cell(row=7, column=11)
+        if mps_type.value.endswith('dipole'):
+            self.mps = 'dipole'
+        elif mps_type.value.endswith('c1'):
+            self.mps = 'c1'
         sheet = self.entry['Cogging']
         sheet.cell(row=10, column=10, value=self.shd)
         sheet.cell(row=11, column=10, value=(self.shd+'_fix_only'))
@@ -174,6 +179,12 @@ class Transfer:
             self.copy_data(sheet, 14, 15, 'row', bemf101112_acw_values)
         self.entry.save(self.results)
 
+    def mps_type(self):
+        if self.mps == 'dipole':
+            self.mps_dipole()
+        elif self.mps == 'c1':
+            self.mps_c1()
+
     def mps_dipole(self):
         sheet = 'MPS'
         mps = self.paths.get('mps')
@@ -196,6 +207,9 @@ class Transfer:
         self.copy_data(sheet, 21, 6, 'column', mps_acw_field)
         self.entry.save(self.results)
 
+    def mps_c1(self):
+        pass
+
 
 def main():
     shd = get_shd()
@@ -206,7 +220,16 @@ def main():
     unit.hsf()
     unit.bemf()
     unit.misc()
-    unit.mps_dipole()
+    unit.mps_type()
 
 
+print('V1.0 data consolidation for Dyno 2\nFor any issues please speak to Giles Dash')
 main()
+while True:
+    again = input('Would you like to run another unit Y/N: ')
+    if again.lower() == 'n':
+        break
+    elif again.lower() == 'y':
+        main()
+    else:
+        input('Please enter a valid Y/N answer: ')
