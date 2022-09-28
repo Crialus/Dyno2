@@ -10,7 +10,8 @@ import sys
 
 
 def get_shd():
-    # User input for SHD number that ensures correct format via regex and return SHD
+    # User input for SHD number that ensures correct format via regex
+    # and return SHD
     shd = input('Please enter an SHD number in the form YYMMDDXX####: ')
     rex = re.compile('^[0-9]{6}[A-Z]{2}[0-9]{4}$')
     if rex.match(shd):
@@ -20,8 +21,9 @@ def get_shd():
 
 
 def get_unit_type():
-    # Get folder containing results data. Load all folders from root and use inquirer
-    # list to select the folder containing SHD and return the path to the relevant SHD data
+    # Get folder containing results data. Load all folders from root and use
+    # inquirer list to select the folder containing SHD and return the path
+    # to the relevant SHD data
     ROOT = 'T:\\Motors\\Lab Testing\\00 Active Tasks\\'
     dir_list = [item for item in os.listdir(ROOT) if os.path.isdir(os.path.join(ROOT, item))]
     model_list = [
@@ -45,11 +47,12 @@ def results_files(path, shd):
         'cogging': path + '\\Cogging_LSF\\' + shd + '_50 - Friction Results.dsv',
         'cogging_fix_only': path + '\\Cogging_LSF\\' + shd + '_FixOnly_50 - Friction Results.dsv',
         'high_speed_friction': path + '\\HSF\\' + shd + '_1000 - Friction Results.dsv',
-        'high_speed_friction_fix_only': path + '\\HSF\\' + shd + '_FixOnly_1000 - Friction Results.dsv',
+        'high_speed_friction_fix_only': path + '\\HSF\\'+shd+'_FixOnly_1000 - Friction Results.dsv',
         'back_emf_123': path + '\\BEMF Ke\\' + shd + '_123 Results.csv',
         'back_emf_456': path + '\\BEMF Ke\\' + shd + '_456 Results.csv',
         'back_emf_789': path + '\\BEMF Ke\\' + shd + '_789 Results.csv',
         'back_emf_101112': path + '\\BEMF Ke\\' + shd + '_101112 Results.csv',
+        'mps': path + '\\MPS_Flux\\' + shd + ' Results.csv',
         }
     return unit_paths
 
@@ -78,8 +81,9 @@ class Transfer:
         self.entry.save(self.results)
 
     def copy_data(self, sheet, static, variable, type, values):
-        # copy data held in variables to the results file, for multiple values either
-        # row or column will be variable and the passed 'type' will define which this is.
+        # copy data held in variables to the results file, for multiple
+        # values either row or column will be variable and the
+        # passed 'type' will define which this is.
         # the passed 'variable' is the start number for the iteration
         i = variable
         sheet = self.entry[sheet]
@@ -98,8 +102,9 @@ class Transfer:
             sheet.cell(row=static, column=variable, value=x)
 
     def cogging(self):
-        # For fixture only, take the inline mean values and add them to the results.
-        # For the unit data take inline mean values, and peak to peak values
+        # For fixture only, take the inline mean values and add
+        # them to the results. For the unit data take inline
+        # mean values, and peak to peak values
         sheet = 'Cogging'
         fix_only = self.paths.get('cogging_fix_only')
         cogging = self.paths.get('cogging')
@@ -133,7 +138,8 @@ class Transfer:
         self.entry.save(self.results)
 
     def bemf(self):
-        # Take mean Ke and Ke betweeb each phase, also take rotational speed during test
+        # Take mean Ke and Ke betweeb each phase, also take
+        # rotational speed during test
         sheet = 'Bemf Ke'
         bemf123 = self.paths.get('back_emf_123')
         bemf456 = self.paths.get('back_emf_456')
@@ -149,9 +155,11 @@ class Transfer:
         bemf456_acw_values = bemf456_data.loc[12:16, 4]
         self.copy_data(sheet, 10, 15, 'row', bemf456_cw_values)
         self.copy_data(sheet, 13, 15, 'row', bemf456_acw_values)
-        # If motor has lanes 3 + 4 then add the same values to the sheet. Needs an additional solution
-        # as currently data is simply stored in the same sheet and no analysis takes place.
-        # potential to either create new file and store in the analysed cells or needs new template
+        # If motor has lanes 3 + 4 then add the same values to the sheet.
+        # Needs an additional solution as currently data is simply stored
+        # in the same sheet and no analysis takes place, potential to
+        # either create new file and store in the analysed cells or needs
+        # new template
         if os.path.exists(bemf789):
             bemf789_data = pd.DataFrame(pd.read_csv(open(bemf789), delimiter=',', header=None))
             bemf789_cw_values = bemf789_data.loc[12:16, 1]
@@ -166,6 +174,28 @@ class Transfer:
             self.copy_data(sheet, 14, 15, 'row', bemf101112_acw_values)
         self.entry.save(self.results)
 
+    def mps_dipole(self):
+        sheet = 'MPS'
+        mps = self.paths.get('mps')
+        mps_data = pd.DataFrame(pd.read_csv(open(mps), delimiter=',', header=None))
+        mps_cw_field = mps_data.loc[12:14, 1]
+        mps_acw_field = mps_data.loc[12:14, 4]
+        mps_cw_error = mps_data.loc[16:19, 1]
+        mps_acw_error = mps_data.loc[16:19, 4]
+        mps_cw_flux_x = mps_data.loc[22:23, 1]
+        mps_cw_flux_y = mps_data.loc[24:25, 1]
+        mps_acw_flux_x = mps_data.loc[22:23, 4]
+        mps_acw_flux_y = mps_data.loc[24:25, 4]
+        self.copy_data(sheet, 13, 3, 'column', mps_cw_flux_x)
+        self.copy_data(sheet, 14, 3, 'column', mps_acw_flux_x)
+        self.copy_data(sheet, 13, 6, 'column', mps_cw_flux_y)
+        self.copy_data(sheet, 14, 6, 'column', mps_acw_flux_y)
+        self.copy_data(sheet, 20, 3, 'column', mps_cw_error)
+        self.copy_data(sheet, 21, 3, 'column', mps_acw_error)
+        self.copy_data(sheet, 20, 6, 'column', mps_cw_field)
+        self.copy_data(sheet, 21, 6, 'column', mps_acw_field)
+        self.entry.save(self.results)
+
 
 def main():
     shd = get_shd()
@@ -176,6 +206,7 @@ def main():
     unit.hsf()
     unit.bemf()
     unit.misc()
+    unit.mps_dipole()
 
 
 main()
